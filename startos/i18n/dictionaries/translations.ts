@@ -7,6 +7,9 @@ export default {
     '3': 'El explorador está escuchando',
     '4': 'El explorador no está escuchando',
     '5': 'El RPC restringido de Monero no está disponible',
+    '6': 'RPC de Monero',
+    '7': 'Leyendo la cadena de bloques desde Monero',
+    '8': 'No se puede leer desde Monero. Comprueba que esté en ejecución y sincronizado.',
   },
   de_DE: {
     '0': 'Weboberfläche',
@@ -15,6 +18,9 @@ export default {
     '3': 'Der Explorer ist erreichbar',
     '4': 'Der Explorer ist nicht erreichbar',
     '5': 'Moneros eingeschränkte RPC-Schnittstelle ist nicht verfügbar',
+    '6': 'Monero-RPC',
+    '7': 'Blockchain wird von Monero gelesen',
+    '8': 'Lesen von Monero nicht möglich. Prüfe, ob Monero läuft und synchronisiert ist.',
   },
   fr_FR: {
     '0': 'Interface web',
@@ -23,6 +29,9 @@ export default {
     '3': 'L’explorateur est à l’écoute',
     '4': 'L’explorateur n’est pas à l’écoute',
     '5': 'Le RPC restreint de Monero n’est pas disponible',
+    '6': 'RPC Monero',
+    '7': 'Lecture de la blockchain depuis Monero',
+    '8': 'Impossible de lire depuis Monero. Vérifiez qu’il est en cours d’exécution et synchronisé.',
   },
   pl_PL: {
     '0': 'Interfejs WWW',
@@ -31,5 +40,8 @@ export default {
     '3': 'Przeglądarka nasłuchuje',
     '4': 'Przeglądarka nie nasłuchuje',
     '5': 'Ograniczony interfejs RPC Monero jest niedostępny',
+    '6': 'RPC Monero',
+    '7': 'Odczyt łańcucha bloków z Monero',
+    '8': 'Nie można odczytać danych z Monero. Sprawdź, czy działa i jest zsynchronizowany.',
   },
 } satisfies Record<string, LangDict>

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icon.svg" alt="Monero logo" width="21%" />
+  <img src="icon.svg" alt="MoneroBlock Logo" width="21%" />
 </p>
 
 # MoneroBlock on StartOS
@@ -10,9 +10,10 @@
 > Documentation section of `instructions.md` for links.
 
 [MoneroBlock](https://github.com/duggavo/MoneroBlock) is a lightweight block and
-transaction explorer. This package connects it to the installed Monero service.
+transaction explorer. This package points it at the restricted RPC of the Monero
+service on the same server.
 
-- Wrapper repository: https://github.com/Koscheybessmertniy/moneroblock-startos
+---
 
 ## Table of Contents
 
@@ -29,116 +30,119 @@ transaction explorer. This package connects it to the installed Monero service.
 - [Limitations and Differences](#limitations-and-differences)
 - [Quick Reference for AI Consumers](#quick-reference-for-ai-consumers)
 
+---
+
 ## Image and Container Runtime
 
-The Dockerfile builds a static Go executable from the pinned, clean `upstream/`
-submodule and applies `patches/startos-rpc.patch` only inside the builder. Builder
-and runtime bases are pinned by digest. Only x86_64 is offered.
+The image is built from this repo's `Dockerfile`: a static Go binary compiled from
+the `upstream/` submodule with `patches/startos-rpc.patch` applied, on an Alpine
+base. It is built for x86_64 and aarch64.
 
-The `moneroblock` subcontainer runs `/usr/local/bin/start-moneroblock`, which sets
-`MONERO_CONFIG=/chain/monero.conf` and starts the explorer on port 31312 with the
-resolved restricted-RPC address. Credentials are read by the executable rather
-than passed in command arguments. The process runs as root inside its
-subcontainer so it can read the dependency's configuration; that mount is read-only.
+| Subcontainer  | Runs                                                                                         |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| `moneroblock` | `/usr/local/bin/moneroblock --bind 0.0.0.0:31312 --daemon <Monero restricted RPC>`, as `nobody` |
+
+The RPC login, when Monero has one, is passed in the `MONEROBLOCK_RPC_LOGIN`
+environment variable rather than on the command line.
 
 ## Volume and Data Layout
 
-MoneroBlock keeps its recent-block cache in memory. Its own `main` volume is kept
-for package backup continuity and is not mounted into the application container.
+MoneroBlock stores nothing on disk; its recent-block list is held in memory and
+rebuilt from Monero on every start.
 
-| Resource | Mount | Purpose |
-| --- | --- | --- |
-| Own `main` volume | Not mounted | Package backup continuity; no application data |
-| Monero `monerod` volume | `/chain`, read-only | Reads `monero.conf` for RPC credentials |
+| Resource                | Where                                                | Purpose                                 |
+| ----------------------- | ---------------------------------------------------- | --------------------------------------- |
+| Own volumes             | None                                                 | —                                       |
+| Monero's `monerod` volume | Mounted read-only into the package's own runtime, never into the explorer | Reading `monero.conf` for the RPC login |
 
-The dependency mount is a directory because StartOS does not mount a dependency
-file on its own. The explorer never opens the LMDB files visible under that
-read-only directory. It creates no blockchain copy or index database.
+The explorer never sees Monero's blockchain files.
 
 ## File Models
 
-None. The package does not own or rewrite a Monero configuration file. It reads
-the node's `rpc-login` value once at application startup; changing it requires
-restarting MoneroBlock. Connection settings are supplied as startup arguments.
+None. The package writes no configuration. It reads `rpc-login` from Monero's
+`monero.conf` through Monero's own file model, so a value is interpreted exactly as
+the Monero package writes it.
 
 ## Dependencies
 
-Monero is required and must be running. The exact supported package revision is
-set in `startos/dependencies.ts`, so changes to the node's wrapper are reviewed
-before widening compatibility. Dependency metadata reports status in StartOS;
-it does not itself block the process from starting.
+The package has one dependency, required in every configuration.
+
+| Dependency | Required | Must be healthy | Mount                               | Why                                          |
+| ---------- | -------- | --------------- | ----------------------------------- | -------------------------------------------- |
+| Monero     | Yes      | `monerod`       | `monerod` volume, read-only, package runtime only | Blockchain data over restricted RPC; RPC login |
 
 ## Network Access and Interfaces
 
-The `ui` interface exposes HTTP on internal port 31312 through host `ui-multi`.
-StartOS determines where this interface is published.
+The package exposes one interface and connects to nothing but Monero.
 
-The package resolves Monero's `rpc-restricted` host at internal port 18089,
-selects its plaintext bridge address, and watches only that derived address.
-It does not use wallet RPC or a public remote node. No other outbound connections
-are configured by the package.
+| Interface | Type | Port  | Protocol | Purpose               |
+| --------- | ---- | ----- | -------- | --------------------- |
+| `ui`      | `ui` | 31312 | HTTP     | The explorer web pages |
+
+Outbound, it calls Monero's restricted RPC (port 18089) over the bridge address.
+It does not use the unrestricted RPC, wallet RPC, or any remote node.
 
 ## Installation and First-Run Flow
 
-Initialization registers the interface, empty actions, backups and the required
-Monero dependency. No account creation or blockchain synchronization is performed.
-Starting the application reads the RPC credentials and begins polling recent
-block headers. A missing Monero bridge address surfaces a startup error; address
-changes rerun startup. Background cache polling retries RPC failures.
+Nothing to set up: there is no account, wizard, or credential of its own. The
+explorer starts once Monero is running and healthy, and the home page fills with
+recent blocks within a few seconds.
+
+When Monero's RPC login is added, changed, or removed, MoneroBlock restarts on its
+own with the new value.
 
 ## Actions
 
-None. RPC credentials belong to the Monero service; edit them there and restart
-MoneroBlock afterwards.
+None.
 
 ## Tasks
 
-None. No setup task or credential prompt is introduced by this package.
+None. The service is never held on a prompt.
 
 ## Health Checks
 
-The daemon's `moneroblock` readiness check reports whether port 31312 is listening.
-It establishes web-server availability, not successful RPC access. If it is green
-but pages fail to load, inspect the log and check the Monero service and its RPC
-credentials. An RPC failure during cache refresh is retried without terminating
-the background worker.
+Two checks; the second is the one that tells you whether the explorer is useful.
+
+| Check         | Probes                                       | Failure means                                                                                       |
+| ------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `moneroblock` | Port 31312 is listening                      | The explorer process is not up; read the service log.                                               |
+| `monero-rpc`  | The home page loads, which calls Monero's RPC | Monero is stopped, still starting, or rejecting the login. Check Monero's own health first; a wrong login shows as `401` in the explorer's log. |
 
 ## Backups and Restore
 
-Only the package's own `main` volume is included. It contains no blockchain,
-wallet or node RPC credentials. Monero backups are separate. Restore re-registers
-the package through the SDK's standard restore initializer; the live Monero
-configuration is read again when the application starts.
+There is nothing to back up: the package has no volumes, so its backup is empty and a
+restore only reinstalls it. Monero's data is in Monero's own backup.
 
 ## Limitations and Differences
 
-The carried patch enables Digest authentication, preserves colons and equals
-signs in RPC passwords, handles a short chain without unsigned underflow,
-synchronizes the in-memory cache and retries cache-refresh failures. It also
-removes unused HTTP-framework dependencies and records Go module checksums.
+1. The explorer shows only what the connected node holds; transaction details a
+   pruned node no longer has cannot be displayed.
+2. The web pages are in English only; StartOS labels and descriptions are localized.
+3. The carried patch adds Digest authentication (upstream sends no credentials),
+   reads the login from the environment, fixes upstream's swapped username and
+   password and its truncation of passwords containing `:`, handles chains shorter
+   than 51 blocks, makes the recent-block cache thread-safe, and keeps refreshing it
+   after an RPC error instead of crashing.
 
-The explorer cannot recover transaction data removed by pruning. It reads RPC
-credentials only at startup, so it does not automatically follow a credential
-change. The browser application and these instructions remain in English;
-package descriptions and StartOS status labels are localized.
+---
 
 ## Quick Reference for AI Consumers
 
-This summary lists the resources an administering agent needs to identify.
-
 ```yaml
 package_id: moneroblock
-image: custom Dockerfile from upstream submodule and patches
-architectures: [x86_64]
+image: built from Dockerfile (upstream submodule + patches/)
+architectures: [x86_64, aarch64]
 subcontainers: [moneroblock]
-volumes:
-  main: not mounted
+volumes: {}
 file_models: []
-startos_managed_env_vars: []
+startos_managed_env_vars:
+  - MONEROBLOCK_RPC_LOGIN
 dependencies: [monerod]
 interfaces:
   ui: { type: ui, port: 31312 }
 actions: []
 tasks: []
-health_checks: [moneroblock]
+health_checks:
+  - moneroblock
+  - monero-rpc
 ```

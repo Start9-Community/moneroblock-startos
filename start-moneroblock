@@ -1,4 +1,0 @@
-#!/bin/sh
-set -eu
-export MONERO_CONFIG=/chain/monero.conf
-exec /usr/local/bin/moneroblock --bind 0.0.0.0:31312 --daemon "$1"

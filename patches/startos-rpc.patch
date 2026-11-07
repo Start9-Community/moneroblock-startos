@@ -1,58 +1,8 @@
-diff --git a/main.go b/main.go
---- a/main.go
-+++ b/main.go
-@@ -33,6 +33,7 @@
- 	"fmt"
- 	"math"
- 	"net/http"
-+	"os"
- 	"regexp"
- 	"strconv"
- 	"strings"
-@@ -67,14 +68,27 @@
- 	flag.StringVar(&DaemonUrl, "daemon", "127.0.0.1:18081", "The Monero daemon URL. Please note that using a third-party daemon might harm privacy if you do not use a proxy.")
- 	flag.Parse()
- 
-+	// Read credentials without passing them in process arguments.
-+	if config := os.Getenv("MONERO_CONFIG"); config != "" {
-+		contents, err := os.ReadFile(config)
-+		if err != nil {
-+			panic(err)
-+		}
-+		for _, line := range strings.Split(string(contents), "\n") {
-+			pair := strings.SplitN(line, "=", 2)
-+			if len(pair) == 2 && strings.TrimSpace(pair[0]) == "rpc-login" {
-+				RpcLogin = strings.TrimSpace(pair[1])
-+			}
-+		}
-+	}
- 	if RpcLogin != "none" {
--		splLogin := strings.Split(RpcLogin, ":")
-+		splLogin := strings.SplitN(RpcLogin, ":", 2)
- 		if len(splLogin) < 2 {
- 			fmt.Println("rpc-login flag is not valid. Ignoring it.")
- 			RpcLogin = "none"
- 		} else {
--			RpcPassword = splLogin[0]
--			RpcUsername = splLogin[1]
-+			RpcUsername = splLogin[0]
-+			RpcPassword = splLogin[1]
- 		}
- 	}
- 
-@@ -92,7 +106,7 @@
- 	})
- 	http.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
- 		var blocksList string
--		for _, e := range RecentBlocks {
-+		for _, e := range GetCachedBlocks() {
- 			CheckString(e.Hash)
- 			blocksList = "<tr class=\"tr\"><td>" + strconv.FormatUint(e.Height, 10) + "</td><td>" + strconv.FormatUint(uint64(e.NumTxes), 10) + "</td><td><a class=\"monos\" href=\"/block?id=" + e.Hash + "\">" + e.Hash + "</a></td><td>" + FormatTimeAgo(time.Now().Unix()-e.Timestamp) + "</td></tr>" + blocksList
- 		}
 diff --git a/daemon_rpc.go b/daemon_rpc.go
+index 52d6776..7e6d50a 100644
 --- a/daemon_rpc.go
 +++ b/daemon_rpc.go
-@@ -31,8 +31,10 @@
+@@ -31,8 +31,10 @@ package main
  import (
  	"context"
  	"encoding/json"
@@ -63,7 +13,7 @@ diff --git a/daemon_rpc.go b/daemon_rpc.go
  	"time"
  
  	"regexp"
-@@ -49,7 +51,14 @@
+@@ -49,7 +51,14 @@ func StartDaemonRpc() {
  	var err error
  
  	if ProxyToUse == "none" {
@@ -79,7 +29,7 @@ diff --git a/daemon_rpc.go b/daemon_rpc.go
  
  	} else {
  		url_proxy, _ := url.Parse(ProxyToUse)
-@@ -87,7 +96,7 @@
+@@ -87,7 +96,7 @@ func GetInfo() *daemon.GetInfoResult {
  
  func GetRecentBlocks() *daemon.GetBlockHeadersRangeResult {
  	height := GetHeight()
@@ -88,7 +38,7 @@ diff --git a/daemon_rpc.go b/daemon_rpc.go
  	if err != nil {
  		panic(err)
  	}
-@@ -146,9 +155,30 @@
+@@ -146,9 +155,30 @@ func GetTransaction(txHash string) (isValid bool, result daemon.GetTransactionsR
  
  var RecentBlocks []daemon.BlockHeader
  
@@ -121,9 +71,10 @@ diff --git a/daemon_rpc.go b/daemon_rpc.go
  	}
  }
 diff --git a/go.mod b/go.mod
+index f8539d3..ceed7c9 100644
 --- a/go.mod
 +++ b/go.mod
-@@ -2,16 +2,4 @@
+@@ -2,16 +2,4 @@ module moneroblock
  
  go 1.18
  
@@ -142,6 +93,8 @@ diff --git a/go.mod b/go.mod
 -)
 +require github.com/cirocosta/go-monero v0.0.5
 diff --git a/go.sum b/go.sum
+new file mode 100644
+index 0000000..3c250cb
 --- /dev/null
 +++ b/go.sum
 @@ -0,0 +1,1059 @@
@@ -1204,3 +1157,45 @@ diff --git a/go.sum b/go.sum
 +rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 +rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
 +sigs.k8s.io/yaml v1.1.0/go.mod h1:UJmg0vDUVViEyp3mgSv9WPwZCDxu4rQW1olrI1uml+o=
+diff --git a/main.go b/main.go
+index 941291c..35d27f2 100644
+--- a/main.go
++++ b/main.go
+@@ -33,6 +33,7 @@ import (
+ 	"fmt"
+ 	"math"
+ 	"net/http"
++	"os"
+ 	"regexp"
+ 	"strconv"
+ 	"strings"
+@@ -67,14 +68,17 @@ func main() {
+ 	flag.StringVar(&DaemonUrl, "daemon", "127.0.0.1:18081", "The Monero daemon URL. Please note that using a third-party daemon might harm privacy if you do not use a proxy.")
+ 	flag.Parse()
+ 
++	if login := os.Getenv("MONEROBLOCK_RPC_LOGIN"); login != "" {
++		RpcLogin = login
++	}
+ 	if RpcLogin != "none" {
+-		splLogin := strings.Split(RpcLogin, ":")
++		splLogin := strings.SplitN(RpcLogin, ":", 2)
+ 		if len(splLogin) < 2 {
+ 			fmt.Println("rpc-login flag is not valid. Ignoring it.")
+ 			RpcLogin = "none"
+ 		} else {
+-			RpcPassword = splLogin[0]
+-			RpcUsername = splLogin[1]
++			RpcUsername = splLogin[0]
++			RpcPassword = splLogin[1]
+ 		}
+ 	}
+ 
+@@ -92,7 +96,7 @@ func main() {
+ 	})
+ 	http.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
+ 		var blocksList string
+-		for _, e := range RecentBlocks {
++		for _, e := range GetCachedBlocks() {
+ 			CheckString(e.Hash)
+ 			blocksList = "<tr class=\"tr\"><td>" + strconv.FormatUint(e.Height, 10) + "</td><td>" + strconv.FormatUint(uint64(e.NumTxes), 10) + "</td><td><a class=\"monos\" href=\"/block?id=" + e.Hash + "\">" + e.Hash + "</a></td><td>" + FormatTimeAgo(time.Now().Unix()-e.Timestamp) + "</td></tr>" + blocksList
+ 		}

@@ -1,16 +1,11 @@
 # Carried patches
 
-`startos-rpc.patch` applies to the clean upstream submodule during the container
-build. Do not modify the submodule or apply this patch in the checkout.
+`startos-rpc.patch` is applied to the `upstream/` submodule by the Dockerfile. It:
 
-The patch connects RPC credentials to go-monero's Digest HTTP client, reads
-credentials from the read-only node configuration, preserves colons and equals
-signs in passwords, bounds the recent-block range on small chains, synchronizes
-the block cache, and retries background RPC failures. It also runs gofmt and
-records the minimal Go module graph and its checksums; unused Fiber dependencies
-are removed.
+- sends the RPC login with Digest authentication, read from `MONEROBLOCK_RPC_LOGIN`;
+- splits the login at the first `:` only, with username first;
+- bounds the recent-block range on a chain shorter than 51 blocks;
+- guards the recent-block cache with a mutex and retries a failed refresh;
+- drops the unused Fiber dependencies from `go.mod` and adds the `go.sum` upstream lacks.
 
-Retire the corresponding hunks when upstream provides equivalent authentication,
-cache synchronization and retry behavior, and small-chain range handling. Remove
-the dependency hunks when upstream's module graph matches. Re-run the authenticated
-and unauthenticated RPC checks before retiring any hunk.
+Drop a hunk once upstream ships the equivalent.
