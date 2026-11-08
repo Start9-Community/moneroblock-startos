@@ -1,7 +1,10 @@
 {
   "name": "moneroblock-startos",
-  "private": true,
   "dependencies": {
-    "@start9labs/start-sdk": "4.0.0"
+    "@start9labs/start-sdk": "4.0.0",
+    "monerod-startos": "github:Start9-Community/monerod-startos#next"
+  },
+  "overrides": {
+    "@start9labs/start-sdk": "$@start9labs/start-sdk"
   }
 }

@@ -12,7 +12,7 @@ export const dependencies = sdk.Dependencies.of().addDependency(
       title: 'Monero',
       icon: 'https://raw.githubusercontent.com/Start9-Community/monerod-startos/8add8fa5144a2ebd971f05740023393290ef9ff1/icon.svg',
     },
-    versionRange: '=0.18.5.4:3',
+    versionRange: '>=0.18.5.4:3',
     kind: 'running',
     healthChecks: ['monerod'],
   }),

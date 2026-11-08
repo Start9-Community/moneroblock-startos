@@ -1,15 +1,7 @@
 .git
-**/.git
 .gitmodules
-.github
 node_modules
 javascript
 ncc-cache
 docker-images
-.startos
-*.key.pem
-.env
-.env.*
 *.s9pk
-*.squashfs
-*.oci

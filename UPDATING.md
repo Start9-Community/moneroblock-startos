@@ -1,19 +1,18 @@
-# Updating upstream
+# Updating the upstream version
 
-1. Inspect upstream refs with `git ls-remote --tags https://github.com/duggavo/MoneroBlock.git`
-   and the application's `Version` constant in upstream `main.go`. The packaged
-   source is selected by the `upstream/` gitlink, not by an image tag.
-2. Fetch in `upstream/`, check out the reviewed commit, and keep that checkout
-   clean. Update `patches/startos-rpc.patch` against the new clean source. Its
-   retirement conditions are recorded in `patches/README.md`.
-3. Build the Dockerfile to check that the patch applies without fuzz and that
-   `go mod verify` and `go build -mod=readonly` pass. Refresh dependency hunks only
-   after reviewing the module changes. Review and refresh the two base-image
-   digests in `Dockerfile` separately from an application bump.
-4. Verify the supported Monero package's configuration volume, RPC host, internal
-   port and authentication, then update `startos/dependencies.ts` if needed.
-5. Set the application version and package revision in `startos/versions/current.ts`.
-   Use a tag of the form `v<application-version>_<package-revision>` for a release.
-6. Run the SDK checks and package build, then verify authenticated and unauthenticated
-   RPC, block and transaction lookup, a short chain, restart, upgrade and teardown
-   on StartOS. Confirm backup/restore before describing it as tested.
+Upstream is the `upstream/` git submodule, pinned to a release tag of
+[duggavo/MoneroBlock](https://github.com/duggavo/MoneroBlock).
+
+## Determining the upstream version
+
+The pinned tag is `git -C upstream describe --tags`. The latest is the highest tag in
+`git ls-remote --tags https://github.com/duggavo/MoneroBlock.git`; upstream publishes no
+GitHub releases.
+
+## Applying the bump
+
+1. `git -C upstream fetch --tags && git -C upstream checkout <tag>`, then stage `upstream`.
+2. Rebase `patches/startos-rpc.patch` onto the new source and confirm it applies without fuzz;
+   drop any hunk upstream has made redundant (see `patches/README.md`).
+3. Set the upstream part of `version` in `startos/versions/current.ts` to the tag without its
+   leading `v`.

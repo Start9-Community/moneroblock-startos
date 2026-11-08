@@ -1,10 +1,12 @@
-# Package maintenance
+# AGENTS.md
 
-- Clone with `--recurse-submodules`. Keep `upstream/` clean at its gitlink pin;
-  the Dockerfile applies `patches/startos-rpc.patch` to a build-only copy.
-- Read the workspace packaging guide before changing SDK code. `npm ci` installs
-  the pinned SDK; run `make x86` in a StartOS packaging workspace to build.
-- Only x86_64 is declared. Keep the five reusable CI wrappers aligned with
-  Start9's guide. Registry release jobs run only in the Start9-Community fork.
-- Never commit a workspace signing key or service credentials. `.startos/` belongs
-  beside the package repo, not inside it.
+This is a StartOS service-package repository — it builds a `.s9pk` for StartOS.
+
+Develop it inside a StartOS packaging workspace created by `start-cli s9pk init-workspace`,
+which provides the packaging guide and agent context one level up. If you're reading this in a
+bare clone with no workspace, the full guide is at <https://docs.start9.com/packaging>.
+
+- Clone with `--recurse-submodules`. Never commit changes inside `upstream/`; carry them in
+  `patches/startos-rpc.patch`, which the Dockerfile applies at build time.
+- Regenerate the patch from a scratch copy of the pinned upstream with the patch applied,
+  `git add -N go.sum` before `git diff`: the patch creates `go.sum`, and a plain diff drops it.
